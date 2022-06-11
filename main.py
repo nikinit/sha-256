@@ -6,25 +6,31 @@ END = 1000
 
 class Cipher:
     def __init__(self):
-        self.generate_keys()
+        self.p = self.generate_prime_number()
+        self.q = self.generate_prime_number()
+        self.n = self.p * self.q
+        self.d = self.generate_coprime_number((self.p - 1) * (self.q - 1))
+        self.e = self.generate_multiplier(self.p, self.q, self.d)
 
-    def generate_keys(self):
-        p = self.generate_prime_number() # простое число
-        q = self.generate_prime_number() # простое число
-        # print('p: ', p)
-        # print('q: ', q)
+        self.generate_private_key()
 
-        n = p * q # часть открытого и закрытого ключа
-        # print('n:', n)
+    def generate_sert(self, name):
+        self.sert = {'e': self.e, 'n': self.n}
+        sert = open(name + '_sert.txt', 'w+')
+        sert.write(str(self.e) + ' ' + str(self.n))
+        sert.close()
 
-        d = self.generate_coprime_number((p - 1) * (q - 1)) # часть секретного ключа
-        # print('d: ', d)
+    def upload_sert(self, file_name):
+        sert = open(file_name)
+        blocks =  sert.read().split(' ')
+        neighbour_e = blocks[0]
+        neighbour_n = blocks[1]
 
-        e = self.generate_multiplier(p, q, d)
-        # print('e: ', e)
+        self.neighbour_sert = {'e': int(neighbour_e), 'n': int(neighbour_n)}
+        sert.close()
 
-        self.public_key = {'e': e, 'n': n}
-        self.__private_key = {'d': d, 'n': n}
+    def generate_private_key(self):
+        self.__private_key = {'d': self.d, 'n': self.n}
 
     def generate_prime_number(self):
         prime_number_candidate = randint(BEGIN, END)
@@ -54,33 +60,40 @@ class Cipher:
                 return e
             e += 1
 
-    def cipher_message(self):
-        secret_key = open('secret_key.txt')
+    def cipher_message(self, file_name, file_name_ciphered):
+        secret_key = open(file_name)
         message = secret_key.read()
 
-        secret_key_ciphered = open('secret_key_ciphered.txt', 'w')
+        secret_key_ciphered = open(file_name_ciphered, 'w+')
 
         for letter in message:
-            ciphered_letter = (ord(letter) ** box_1.public_key['e']) % box_1.public_key['n']
+            ciphered_letter = (ord(letter) ** self.neighbour_sert['e']) % self.neighbour_sert['n']
             secret_key_ciphered.write(str(ciphered_letter) + '\n')
 
         secret_key_ciphered.close()
 
-    def decipher_message(self):
-        secret_key_ciphered = open('secret_key_ciphered.txt')
+    def decipher_message(self, file_name_ciphered, file_name_deciphered):
+        secret_key_ciphered = open(file_name_ciphered)
         ciphered_message = secret_key_ciphered.read()
         ciphered_letters = ciphered_message.split(('\n'))[:-1]
 
-        secret_key_deciphered = open('secret_key_deciphered.txt', 'w')
+        secret_key_deciphered = open(file_name_deciphered, 'w+')
 
         for letter in ciphered_letters:
             deciphered_letter = chr((int(letter) ** self.__private_key['d']) % self.__private_key['n'])
-            print("deciphered_letter", deciphered_letter)
             secret_key_deciphered.write(deciphered_letter)
         secret_key_deciphered.close()
 
-box_1 = Cipher()
+client = Cipher()
+client.generate_sert('client')
 
-box_1.cipher_message()
+server = Cipher()
+server.generate_sert('server')
 
-box_1.decipher_message()
+server.upload_sert('client_sert.txt')
+client.upload_sert('server_sert.txt')
+
+client.cipher_message('secret_key.txt', 'secret_key_ciphered.txt') #
+
+server.decipher_message('secret_key_ciphered.txt', 'secret_key_deciphered.txt') #
+
